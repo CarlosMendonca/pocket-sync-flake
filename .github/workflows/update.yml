@@ -1,0 +1,120 @@
+name: Auto-update pocket-sync
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for new release
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST=$(gh api repos/neil-morrison44/pocket-sync/releases/latest --jq '.tag_name')
+          LATEST_SEMVER="${LATEST#v}"
+          CURRENT=$(grep -oP '(?<=version = ")[^"]+' flake.nix)
+          echo "latest=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "latest_semver=${LATEST_SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          if [ "$LATEST_SEMVER" = "$CURRENT" ]; then
+            echo "Already at latest version ${CURRENT}, nothing to do."
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          elif gh pr list --head "auto-update/pocket-sync-${LATEST_SEMVER}" --json number --jq 'length' | grep -q '^[1-9]'; then
+            echo "Open PR already exists for ${LATEST}, nothing to do."
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version available: ${CURRENT} -> ${LATEST_SEMVER}"
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Nix
+        if: steps.version.outputs.up_to_date == 'false'
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Compute src hash
+        if: steps.version.outputs.up_to_date == 'false'
+        id: src_hash
+        run: |
+          LATEST="${{ steps.version.outputs.latest }}"
+          LATEST_SEMVER="${{ steps.version.outputs.latest_semver }}"
+          URL="https://github.com/neil-morrison44/pocket-sync/releases/download/${LATEST}/Pocket.Sync_${LATEST_SEMVER}_amd64.deb"
+          RAW=$(nix-prefetch-url --type sha256 "$URL" 2>/dev/null)
+          SRC_HASH=$(nix hash convert --hash-algo sha256 --to sri "$RAW")
+          echo "src_hash=${SRC_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Patch version and src hash
+        if: steps.version.outputs.up_to_date == 'false'
+        run: |
+          LATEST="${{ steps.version.outputs.latest }}"
+          LATEST_SEMVER="${{ steps.version.outputs.latest_semver }}"
+          SRC_HASH="${{ steps.src_hash.outputs.src_hash }}"
+          sed -i \
+            -e "s|version = \"[^\"]*\"|version = \"${LATEST_SEMVER}\"|" \
+            -e "s|hash = \"sha256-[^\"]*\"|hash = \"${SRC_HASH}\"|" \
+            flake.nix
+          sed -i \
+            -e "s|pocket-sync \[v[^]]*\](https://github.com/neil-morrison44/pocket-sync/releases/tag/v[^)]*)|pocket-sync [${LATEST}](https://github.com/neil-morrison44/pocket-sync/releases/tag/${LATEST})|" \
+            README.md
+
+      - name: Build
+        if: steps.version.outputs.up_to_date == 'false'
+        run: nix build path:.
+
+      - name: Verify binary exists
+        if: steps.version.outputs.up_to_date == 'false'
+        run: |
+          if [ ! -x ./result/bin/pocket-sync ]; then
+            echo "ERROR: ./result/bin/pocket-sync not found or not executable"
+            exit 1
+          fi
+          echo "OK: ./result/bin/pocket-sync exists"
+
+      - name: Open PR
+        if: steps.version.outputs.up_to_date == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST="${{ steps.version.outputs.latest }}"
+          LATEST_SEMVER="${{ steps.version.outputs.latest_semver }}"
+          CURRENT="${{ steps.version.outputs.current }}"
+          BRANCH="auto-update/pocket-sync-${LATEST_SEMVER}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add flake.nix README.md
+          git commit -m "chore: update pocket-sync to ${LATEST}"
+          git push --force origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "chore: update pocket-sync to ${LATEST}" \
+            --body "Automated update of pocket-sync from \`v${CURRENT}\` to \`${LATEST}\`.
+
+          Changes:
+          - \`flake.nix\`: \`version\` and \`hash\` updated
+          - \`README.md\`: version link updated to \`${LATEST}\`
+
+          Build verified (binary exists at \`result/bin/pocket-sync\`)." \
+            --base main \
+            --head "$BRANCH")
+
+          gh pr merge --squash "$PR_URL"
+
+          git checkout main
+          git pull
+          git tag "$LATEST"
+          git push origin "$LATEST"

@@ -56,4 +56,4 @@ nix build
 
 ## Current version
 
-pocket-sync [v5.11.0](https://github.com/neil-morrison44/pocket-sync/releases/tag/v5.11.0)
+pocket-sync [v6.0.0](https://github.com/neil-morrison44/pocket-sync/releases/tag/v6.0.0)

@@ -10,7 +10,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        version = "5.11.0";
+        version = "6.0.0";
       in {
         packages.pocket-sync = pkgs.stdenv.mkDerivation {
           pname = "pocket-sync";
@@ -18,7 +18,7 @@
 
           src = pkgs.fetchurl {
             url = "https://github.com/neil-morrison44/pocket-sync/releases/download/v${version}/Pocket.Sync_${version}_amd64.deb";
-            hash = "sha256-5IDwSDHzboBZcqo6iSrtYakNS7/rC224F/kDjohemCs=";
+            hash = "sha256-HmQdDdZA7SFb6+uVIVcr9JslPJBUDanxypu2HYI1YmI=";
           };
 
           nativeBuildInputs = with pkgs; [

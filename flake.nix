@@ -1,63 +1,68 @@
 {
-  description = "pocket-sync - sync tool for the Analogue Pocket";
+  description = "pocket-sync - sync tool for the Analogue Pocket, version-selectable";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    let
+      # Single source of truth for every packaged release.
+      pocketSyncData = builtins.fromJSON (builtins.readFile ./data/pocket-sync.json);
+
+      mkPackages =
+        pkgs:
+        import ./lib/mk-packages.nix {
+          inherit pkgs pocketSyncData;
+          lib = pkgs.lib;
+        };
+    in
+    {
+      # Fold every pocket-sync_*/pocket-sync package into a consumer's nixpkgs.
+      # Build from `prev` (leaf packages that don't reference each other), and drop
+      # the `default` alias so consumers don't get a stray `pkgs.default`.
+      overlays.default = _final: prev: removeAttrs (mkPackages prev) [ "default" ];
+    }
+    # Prebuilt amd64 .deb -> x86_64-linux is the only buildable target.
+    // flake-utils.lib.eachSystem [ "x86_64-linux" ] (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        version = "6.2.1";
-      in {
-        packages.pocket-sync = pkgs.stdenv.mkDerivation {
-          pname = "pocket-sync";
-          inherit version;
 
-          src = pkgs.fetchurl {
-            url = "https://github.com/neil-morrison44/pocket-sync/releases/download/v${version}/Pocket.Sync_${version}_amd64.deb";
-            hash = "sha256-DJr4jf7njIWMwFuObkSh2fRo6Jpg9F3sxokaY5pSTvE=";
-          };
-
-          nativeBuildInputs = with pkgs; [
-            dpkg
-            autoPatchelfHook
-            wrapGAppsHook3
+        # `nix run .#update` appends the newest release to data/pocket-sync.json.
+        update = pkgs.writeShellApplication {
+          name = "pocket-sync-update";
+          runtimeInputs = [
+            pkgs.curl
+            pkgs.jq
+            pkgs.coreutils
+            pkgs.gnugrep
+            pkgs.nix
           ];
-
-          buildInputs = with pkgs; [
-            gtk3
-            glib
-            webkitgtk_4_1
-            openssl
-            libayatana-appindicator
-          ];
-
-          unpackPhase = "dpkg-deb -x $src .";
-
-          installPhase = ''
-            runHook preInstall
-            mkdir -p $out/bin
-            cp usr/bin/pocket-sync $out/bin/pocket-sync
-            runHook postInstall
-          '';
-
-          meta = with pkgs.lib; {
-            description = "Sync tool for the Analogue Pocket";
-            homepage = "https://github.com/neil-morrison44/pocket-sync";
-            license = licenses.agpl3Only;
-            platforms = [ "x86_64-linux" ];
-            mainProgram = "pocket-sync";
-          };
+          text = ''exec bash ${./updater/update.sh} "$@"'';
         };
-
-        packages.default = self.packages.${system}.pocket-sync;
+      in
+      {
+        packages = mkPackages pkgs;
 
         apps.pocket-sync = flake-utils.lib.mkApp {
           drv = self.packages.${system}.pocket-sync;
         };
         apps.default = self.apps.${system}.pocket-sync;
-      });
+
+        apps.update = {
+          type = "app";
+          program = "${update}/bin/pocket-sync-update";
+          meta.description = "Append the newest pocket-sync release to data/pocket-sync.json";
+        };
+
+        formatter = pkgs.nixfmt;
+      }
+    );
 }

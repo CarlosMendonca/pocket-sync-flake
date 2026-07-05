@@ -1,0 +1,18 @@
+[
+  {
+    "version": "5.11.0",
+    "srcHash": "sha256-5IDwSDHzboBZcqo6iSrtYakNS7/rC224F/kDjohemCs="
+  },
+  {
+    "version": "6.0.0",
+    "srcHash": "sha256-HmQdDdZA7SFb6+uVIVcr9JslPJBUDanxypu2HYI1YmI="
+  },
+  {
+    "version": "6.1.1",
+    "srcHash": "sha256-JKsIsbnk/7nP53C5a/xxQ/22GwG/DZ3MF+ySxLHNAP4="
+  },
+  {
+    "version": "6.2.1",
+    "srcHash": "sha256-DJr4jf7njIWMwFuObkSh2fRo6Jpg9F3sxokaY5pSTvE="
+  }
+]

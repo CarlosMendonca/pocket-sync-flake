@@ -96,4 +96,4 @@ This runs automatically every week via GitHub Actions.
 
 ## Current version
 
-pocket-sync [v6.2.4](https://github.com/neil-morrison44/pocket-sync/releases/tag/v6.2.4)
+pocket-sync [v6.3.1](https://github.com/neil-morrison44/pocket-sync/releases/tag/v6.3.1)

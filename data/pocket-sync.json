@@ -26,5 +26,9 @@
   {
     "version": "6.3.2",
     "srcHash": "sha256-/KCPv/DO9PADqWYv82ySCQoO+1r9ix55T8jFDZ+eFPI="
+  },
+  {
+    "version": "6.4.0",
+    "srcHash": "sha256-W+dLaI7NxUfafPwr0ojk+YUsdgW5sSL8gpAZigAhaY4="
   }
 ]

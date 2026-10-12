@@ -30,5 +30,9 @@
   {
     "version": "6.4.0",
     "srcHash": "sha256-W+dLaI7NxUfafPwr0ojk+YUsdgW5sSL8gpAZigAhaY4="
+  },
+  {
+    "version": "7.0.2",
+    "srcHash": "sha256-FNSCblRhm2cnX6VLfWyMbO29PdBOU/RaBR33ct8DHmE="
   }
 ]

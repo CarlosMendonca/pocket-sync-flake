@@ -38,5 +38,9 @@
   {
     "version": "7.1.1",
     "srcHash": "sha256-MT93zJCYE2g/GXuxRjFVY9jyqZaEQTWK1nwPKqNe7F8="
+  },
+  {
+    "version": "7.2.0",
+    "srcHash": "sha256-y0MqOVFk9+gJ6i3jxNFN8V35yAJPn/XYuiB/Ddg9vDU="
   }
 ]
